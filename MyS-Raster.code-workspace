@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../s-raster"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"hashtable.h": "c",
+			"stdint.h": "c"
+		}
+	}
+}

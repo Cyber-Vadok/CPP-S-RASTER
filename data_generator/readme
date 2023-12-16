@@ -1,0 +1,6 @@
+For the experiment, we created a fle with 1000 clusters of 500 points each, i.e. 500K points
+in total per batch. A batch corresponds to a period, e.g. one day. As we have processed
+ten batches, the total is 5M data points.
+
+data_10000.csv ha 10000 clusters di 500 punti ciascuno per un totale di 5M di punti che divideremo in 10 batches 
+(periodi di tempo) con lo script change_label.py
