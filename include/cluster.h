@@ -1,24 +1,21 @@
 #ifndef CLUSTER_H
 #define CLUSTER_H
 
-#include "xxhash.h"
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <math.h>
-
 #include "tile.h"
 
 #include <vector>
-#include <unordered_set>
-#include <unordered_map>
 #include <iostream>
 
+typedef struct cluster_point
+{
+    double x;
+    double y;
+    uint32_t time;
+    uint32_t cluster_id;
+} cluster_point;
+
 std::vector<point> neighborhood (key_set sigma, const point * center, uint8_t delta);
-
-int rescale(double x, int precision);
-
 std::vector<std::vector<point>> cluster (key_set sigma, uint8_t mu, uint8_t delta);
-void next_period(int time, key_set sigma, uint8_t mu, uint8_t precision, uint8_t delta);
+void next_period(std::vector<cluster_point> &temp, uint32_t time, key_set sigma, uint8_t mu, float precision, uint8_t delta);
 
 #endif

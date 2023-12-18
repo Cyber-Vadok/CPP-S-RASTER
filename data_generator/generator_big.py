@@ -4,9 +4,8 @@
 import os
 import random
 
-
 def generate_data(NUM_CLUSTERS):
-
+    
     random.seed(0) # for reproducibility
 
     # Clusters have 500 points that are randomly spread around a center

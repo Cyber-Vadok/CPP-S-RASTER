@@ -11,21 +11,15 @@
 #include <cstdint>
 #include <string>
 #include <iostream>
-#include <vector>
 #include <chrono>
 
 // my include
 #include "tile.h"
 #include "cluster.h"
+#include "generator.h"
 
-// definitions
-
-typedef struct file_entry
-{
-    int time;
-    double x;
-    double y;
-} file_entry;
+#define MAX_PRECISION 14.0 // massima precisione per i valori generati
+#define MAX_MU 8           // massimo numero di vicini per una tile
 
 // global variables
 
@@ -33,10 +27,23 @@ std::vector<file_entry> file_entries;
 
 // parametri algoritmo
 uint8_t mu = 4;        // Minimum cluster size in terms of the number of signifcant tiles
-uint8_t precision = 3; // Precision for projection operation
-uint8_t tau = 5;       // Threshold number of points to determine if a tile is signifcant
+float precision = 4.0; // Precision for projection operation anche float
+uint8_t tau = 20;      // Threshold number of points to determine if a tile is signifcant
 uint8_t delta = 1;     // Distance metric for cluster defnition
 uint8_t window_size = 10;
+
+// parametri generazione dataset
+uint32_t points_per_cluster = 500;
+uint32_t number_of_clusters = 100; // per period
+uint32_t periods = 10;
+uint64_t seed = 0;
+double max_lng = 180.0;
+double min_lng = -180.0;
+double max_lat = 90.0;
+double min_lat = -90.0;
+double min_dist = 0.0500; // 50 * 1.1m
+// A study based on London, for instance, found
+// a mean error of raw GPS measurements of vehicular movements of 53.7 m
 
 // parametri implementazione
 bool timer_flag = false; // stampa tempo di esecuzione
@@ -47,36 +54,15 @@ void usage()
 {
     fprintf(stderr, "Usage: ./sraster [-m <mu>] [-p <xi>] [-t <tau>] [-d <delta>] [-w <window size>]\n");
     fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 5, max = %u)\n", UINT8_MAX);
-    fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 5, max = %u)\n", UINT8_MAX);
+    fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 5, max = %f)\n", MAX_PRECISION);
     fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 8, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -w <window size> Set window size (default: 5)\n");
-    // fprintf(stderr, "  -f <file>         Set output file (default: ***)\n");
-    // fprintf(stderr, "  -v                Verbose output\n");
-    // fprintf(stderr, "  -t                Print elapsed time and operations per second\n");
-    // fprintf(stderr, "  -h                Print this help message\n");
-    // fprintf(stderr, "  -l                Set the length of the array\n");
+    fprintf(stderr, "  -s <seed> Set seed for random generator (default: 0)\n");
 }
 
 int main(int argc, char **argv)
 {
-
-    // long maxFileLength = pathconf("/", _PC_PATH_MAX); // POSIX
-    // if (maxFileLength == -1) {
-    //     // An error occurred while determining the maximum file length
-    //     perror("Error getting maximum file length");
-    //     return 1;
-    // }
-
-    // uint32_t lenght_value = 0;
-    // uint32_t convergence_value = 0;
-    // std::string filename = "";
-    // bool verbose_flag = false;
-    // bool time_flag = false;
-    // int index;
-    // int c; // getopt() character
-
-    opterr = 0;
 
     // argument parser
     // https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
@@ -93,9 +79,9 @@ int main(int argc, char **argv)
         }
         case 'm': // minimum cluster size
         {
-            if (std::stoul(optarg) > UINT8_MAX)
+            if (std::stoul(optarg) > MAX_MU)
             {
-                fprintf(stderr, "Invalid mu value, max = %u\n", UINT8_MAX);
+                fprintf(stderr, "Invalid mu value, max = %u\n", MAX_MU);
                 usage();
                 exit(EXIT_FAILURE);
             }
@@ -107,15 +93,17 @@ int main(int argc, char **argv)
         }
         case 'p': // precision
         {
-            if (std::stoul(optarg) > UINT8_MAX)
+            char *endptr;
+            float parsedValue = std::strtof(optarg, &endptr);
+            if (endptr == optarg || *endptr != '\0' || parsedValue > MAX_PRECISION)
             {
-                fprintf(stderr, "Invalid precision value, max = %u\n", UINT8_MAX);
+                fprintf(stderr, "Invalid precision value\n");
                 usage();
                 exit(EXIT_FAILURE);
             }
             else
             {
-                precision = std::stoul(optarg);
+                precision = parsedValue;
             }
             break;
         }
@@ -166,6 +154,20 @@ int main(int argc, char **argv)
             timer_flag = true;
             break;
         }
+        case 's':
+        {
+            if (std::stoul(optarg) > UINT64_MAX)
+            {
+                fprintf(stderr, "Invalid seed value, max = %lu\n", UINT64_MAX);
+                usage();
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                seed = std::stoul(optarg);
+            }
+            break;
+        }
 
         case '?':
         {
@@ -183,84 +185,51 @@ int main(int argc, char **argv)
         default:
             exit(1);
         }
-
-        printf("mu = %u, precision = %u, tau = %u, delta = %u\n",
-               mu, precision, tau, delta);
-        // printf("convergence_value = %u, lenght_value = %u, filename = %s, time = %d, verbose = %d\n",
-        //        convergence_value, lenght_value, filename.c_str(), time_flag, verbose_flag);
-
-        for (int index = optind; index < argc; index++)
-        {
-            fprintf(stderr, "Non-option argument %s\n", argv[index]);
-        }
     }
 
-    // read and store dataset
-    int row_time;
-    double row_x;
-    double row_y;
-    uint32_t row_count = 0;
+    printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u, seed = %lu\n",
+           mu, precision, tau, delta, window_size, seed);
 
-    FILE *fp = fopen("/home/robivad/Git/MyS-Raster/data_generator/timed_data_10000.csv", "r");
-    if (fp == NULL)
+    for (int index = optind; index < argc; index++)
     {
-        perror("Error opening file");
-        return 1;
+        fprintf(stderr, "Non-option argument %s\n", argv[index]);
     }
-    printf("loading file into memory\n");
-    while (fscanf(fp, "%lf,%lf,%d", &row_x, &row_y, &row_time) == 3)
-    {
-        file_entry entry = {row_time, row_x, row_y};
-        try
-        {
-            file_entries.push_back(entry);
-            row_count++;
-        }
-        catch (const std::bad_alloc &e)
-        {
-            std::cerr << "Error allocating memory: " << e.what() << std::endl;
-            return 1;
-        }
-    }
-    printf("\n reading complete\n");
 
-    int current_time = INT32_MIN; //
+    file_entries = generate_data(points_per_cluster,
+                                 number_of_clusters,
+                                 periods,
+                                 seed,
+                                 max_lng,
+                                 min_lng,
+                                 max_lat,
+                                 min_lat,
+                                 min_dist);
+    int current_time = -1; //
 
     key_set significant_tiles;
     key_map total;
     sliding_window window;
+    std::vector<cluster_point> clusters;
 
     if (timer_flag)
     {
         start_time = std::chrono::high_resolution_clock::now();
     }
 
-    int count = 0;
     // leggo il dataset
     for (const auto &entry : file_entries)
     {
-        row_time = entry.time;
-        row_x = entry.x;
-        row_y = entry.y;
-
-        if (count++ % 50000 == 0)
-        {
-            printf("count = %d\n", count);
-        }
+        auto row_time = entry.time;
+        auto row_x = entry.x;
+        auto row_y = entry.y;
 
         point k = {surject(row_x, precision), surject(row_y, precision)};
-        if (row_time > current_time)
+        if ((int)row_time > current_time)
         {
-            next_period(current_time, significant_tiles, mu, precision, delta);
+            next_period(clusters, current_time, significant_tiles, mu, precision, delta);
             current_time = row_time;
             int time_key = current_time - window_size;
 
-            printf("current_time = %d\n", current_time);
-
-
-            // da grandi poteri grandi responsabilità
-
-            // TODO : fix this shit
             if (window.count(time_key) > 0)
             {
                 key_map vals = window[time_key];
@@ -282,7 +251,7 @@ int main(int argc, char **argv)
                         significant_tiles.erase(c);
                     }
 
-                    // new count non potrebbe anche diventare negativo?
+                    // TODO : new count non potrebbe anche diventare negativo?
                     if (new_count == 0) // se la tile è vuota
                     {
                         total.erase(c);
@@ -295,14 +264,11 @@ int main(int argc, char **argv)
         total[k] = total[k] + 1;
         window[current_time][k] = window[current_time][k] + 1;
 
-        // basta inserire sola la prima volta, una volta, non mille
         if (total[k] == tau)
         {
             significant_tiles.insert(k);
         }
     }
-
-    printf("ho finito di leggere/n");
 
     if (timer_flag)
     {
@@ -313,6 +279,34 @@ int main(int argc, char **argv)
         printf("Operations per second: %f\n", (double)file_entries.size() / duration.count() * 1000);
     }
 
+    FILE *fp = fopen("cluster.csv", "w");
+    if (fp == NULL)
+    {
+        perror("Error opening file");
+        return 1;
+    }
+    for (cluster_point &cluster : clusters)
+    {
+        fprintf(fp, "%f,%f,%d,%d\n", cluster.x, cluster.y, cluster.time, cluster.cluster_id);
+    }
     fclose(fp);
+
+    fp = fopen("generated_data.csv", "w");
+    if (fp == NULL)
+    {
+        perror("Error opening file");
+        return 1;
+    }
+    uint32_t cluster_id = 0;
+    uint32_t row_count = 0;
+    for (file_entry &entry : file_entries)
+    {
+        if (row_count++ % points_per_cluster == 0)
+        {
+            cluster_id++;
+        }
+        fprintf(fp, "%f,%f,%d,%u\n", entry.x, entry.y, entry.time, cluster_id);
+    }
+
     return 0;
 }
