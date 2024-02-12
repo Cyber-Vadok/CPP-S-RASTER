@@ -1,3 +1,5 @@
+# per l'esperimento, 500k punti al giorno, per 10 giorni, 5M punti
+
 import sys
 
 if __name__ == "__main__":

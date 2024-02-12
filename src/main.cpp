@@ -1,5 +1,7 @@
 // Created by Roberto Vadacca.
 
+#define DEBUG
+
 // c include
 #include <stdio.h>
 #include <ctype.h>
@@ -27,14 +29,14 @@ std::vector<file_entry> file_entries;
 
 // parametri algoritmo
 uint8_t mu = 4;        // Minimum cluster size in terms of the number of signifcant tiles
-float precision = 4.0; // Precision for projection operation anche float
-uint8_t tau = 20;      // Threshold number of points to determine if a tile is signifcant
+float precision = 3.5; // Precision for projection operation anche float
+uint8_t tau = 5;      // Threshold number of points to determine if a tile is signifcant
 uint8_t delta = 1;     // Distance metric for cluster defnition
 uint8_t window_size = 10;
 
 // parametri generazione dataset
 uint32_t points_per_cluster = 500;
-uint32_t number_of_clusters = 100; // per period
+uint32_t number_of_clusters = 1000; // per period
 uint32_t periods = 10;
 uint64_t seed = 0;
 double max_lng = 180.0;
@@ -190,6 +192,9 @@ int main(int argc, char **argv)
     printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u, seed = %lu\n",
            mu, precision, tau, delta, window_size, seed);
 
+    printf("points_per_cluster = %u, number_of_clusters = %u, periods = %u, max_lng = %f, min_lng = %f, max_lat = %f, min_lat = %f, min_dist = %f\n",
+           points_per_cluster, number_of_clusters, periods, max_lng, min_lng, max_lat, min_lat, min_dist);
+
     for (int index = optind; index < argc; index++)
     {
         fprintf(stderr, "Non-option argument %s\n", argv[index]);
@@ -204,6 +209,9 @@ int main(int argc, char **argv)
                                  max_lat,
                                  min_lat,
                                  min_dist);
+
+    printf("Generated %lu entries\n", file_entries.size());
+
     int current_time = -1; //
 
     key_set significant_tiles;
@@ -228,10 +236,21 @@ int main(int argc, char **argv)
         {
             next_period(clusters, current_time, significant_tiles, mu, precision, delta);
             current_time = row_time;
+
+            #ifdef DEBUG
+                printf("DEBUG: Processing time %d\n", current_time);
+            #endif
+            
             int time_key = current_time - window_size;
 
             if (window.count(time_key) > 0)
             {
+
+                #ifdef DEBUG
+                    printf("DEBUG: Removing time %d\n", time_key);
+                    printf("DEBUG: non dovrei essere qui: window.count(time_key) > 0\n");
+                #endif
+
                 key_map vals = window[time_key];
                 key_map::iterator it;
 
@@ -242,9 +261,10 @@ int main(int argc, char **argv)
                     total[c] -= it->second; // prendo il valore di vals
                     int new_count = total[c];
                     // TODO : da controllare
-                    if (new_count < 0)
+                    if (new_count <= 0)
                     {
-                        total[c] = 0;
+                        // total[c] = 0;
+                        total.erase(c);
                     }
                     if (old_count >= tau && new_count < tau)
                     {

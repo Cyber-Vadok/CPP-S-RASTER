@@ -1,12 +1,19 @@
+#define DEBUG
+
 #include "cluster.h"
 
 std::vector<std::vector<point>> cluster(key_set sigma, uint8_t mu, uint8_t delta)
 {
+
+    #ifdef DEBUG
+        printf("DEBUG: cluster.cpp : ho iniziato funzione cluster\n");
+    #endif
+
     std::vector<std::vector<point>> clusters;
 
     // https://thispointer.com/modify-elements-while-iterating-over-a-set-in-c/
     while (!sigma.empty()) // sigma not empty
-    {
+    {   
         std::unordered_set<point> visit;
         std::vector<point> cluster;
         try
@@ -56,12 +63,20 @@ std::vector<std::vector<point>> cluster(key_set sigma, uint8_t mu, uint8_t delta
             }
         }
     }
+    #ifdef DEBUG
+        printf("DEBUG: cluster.cpp : ho finito funzione cluster\n");
+    #endif
     return clusters;
 }
 
 // ricorda che ha senso che se tutti i punti sono vicini tra loro vadano tutti nello stesso cluster con id = 0
 void next_period(std::vector<cluster_point> &temp, uint32_t time, key_set sigma, uint8_t mu, float precision, uint8_t delta)
 {
+
+    #ifdef DEBUG
+        printf("DEBUG: cluster.cpp : time=%d ho iniziato funzione next_period\n", time);
+    #endif
+    
     uint16_t id = 0;
     std::vector<std::vector<point>> knl = cluster(sigma, mu, delta);
    
@@ -82,6 +97,10 @@ void next_period(std::vector<cluster_point> &temp, uint32_t time, key_set sigma,
         }
         id++;
     }
+   
+    #ifdef DEBUG
+        printf("DEBUG: cluster.cpp : time=%d ho finito funzione next_period\n", time);
+    #endif
 }
 
 // io ho inteso adiacenza e non adiacenza cardinale https://freeciv.fandom.com/wiki/Adjacency#:~:text=Adjacency%20is%20when%20a%20tile,referred%20to%20as%20CARDINALLY%20ADJACENT.
