@@ -238,7 +238,9 @@ int main(int argc, char **argv)
             current_time = row_time;
 
             #ifdef DEBUG
+                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
                 printf("DEBUG: Processing time %d\n", current_time);
+                printf("DEBUG: sigma size %ld\n", significant_tiles.size());
             #endif
             
             int time_key = current_time - window_size;
@@ -288,6 +290,7 @@ int main(int argc, char **argv)
         {
             significant_tiles.insert(k);
         }
+
     }
 
     if (timer_flag)

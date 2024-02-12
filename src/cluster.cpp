@@ -1,4 +1,7 @@
 #define DEBUG
+#ifdef DEBUG
+    #include <chrono>
+#endif
 
 #include "cluster.h"
 
@@ -6,6 +9,10 @@ std::vector<std::vector<point>> cluster(key_set sigma, uint8_t mu, uint8_t delta
 {
 
     #ifdef DEBUG
+        std::chrono::high_resolution_clock::time_point start_time;
+        std::chrono::high_resolution_clock::time_point start_time_k;
+        int s_counter = 0;
+        int n_flag = 0;
         printf("DEBUG: cluster.cpp : ho iniziato funzione cluster\n");
     #endif
 
@@ -22,6 +29,19 @@ std::vector<std::vector<point>> cluster(key_set sigma, uint8_t mu, uint8_t delta
             point p_s = *sigma_it;
             visit.insert(p_s);
             sigma.erase(p_s);
+
+            #ifdef DEBUG
+                s_counter++;
+                if (s_counter % 1000 == 0){
+                    auto end_time = std::chrono::high_resolution_clock::now(); // End time
+                    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                    start_time_k = std::chrono::high_resolution_clock::now(); // Start time
+                    printf("DEBUG: cluster.cpp : 1k Elapsed time: %ld second\n", duration.count()/1000);
+                    printf("DEBUG: cluster.cpp : iterazione %d\n", s_counter);
+                    printf("DEBUG: cluster.cpp : 1kth point %d %d :\n", p_s.x, p_s.y);
+                }
+            #endif
+
         }
         catch (const std::exception &e)
         {
@@ -36,7 +56,22 @@ std::vector<std::vector<point>> cluster(key_set sigma, uint8_t mu, uint8_t delta
             try
             {
                 visit.erase(p_v);
+
+                #ifdef DEBUG
+                    if (n_flag == 0){
+                        start_time = std::chrono::high_resolution_clock::now(); // Start time                        
+                    }
+                #endif
                 std::vector<point> ns = neighborhood(sigma, &p_v, delta);
+                #ifdef DEBUG
+                    if (n_flag == 0){
+                        // Calculate elapsed time and print
+                        auto end_time = std::chrono::high_resolution_clock::now(); // End time
+                        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+                        printf("DEBUG: cluster.cpp : single neigh Elapsed time: %ld milliseconds\n", duration.count());
+                        n_flag = 1;
+                    }
+                #endif
                 cluster.push_back(p_v);
 
                 for (const point element : ns)
@@ -114,6 +149,8 @@ std::vector<point> neighborhood(key_set sigma, const point *center, uint8_t delt
             if (i == center->x && j == center->y)
                 continue; // skippa alla prossima operazione
             point k = {i, j};
+
+            // find return end if not found
             if (sigma.find(k) != sigma.end())
             {
                 kl.push_back(k);
