@@ -245,7 +245,8 @@ int main(int argc, char **argv)
             
             int time_key = current_time - window_size;
 
-            if (window.count(time_key) > 0)
+            // 1 is present, 0 is not present
+            if (window.count(time_key) == 1)
             {
 
                 #ifdef DEBUG
@@ -271,12 +272,6 @@ int main(int argc, char **argv)
                     if (old_count >= tau && new_count < tau)
                     {
                         significant_tiles.erase(c);
-                    }
-
-                    // TODO : new count non potrebbe anche diventare negativo?
-                    if (new_count == 0) // se la tile è vuota
-                    {
-                        total.erase(c);
                     }
                 }
                 window.erase(time_key);
