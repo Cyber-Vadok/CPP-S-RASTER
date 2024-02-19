@@ -1,8 +1,7 @@
 // Created by Roberto Vadacca.
 
-#define DEBUG
-
 // c include
+#include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -12,25 +11,32 @@
 // c++ include
 #include <cstdint>
 #include <string>
-#include <iostream>
 #include <chrono>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <sstream>
+#include <iomanip>
+#include <filesystem> // for filesystem operations
 
 // my include
 #include "tile.h"
 #include "cluster.h"
 #include "generator.h"
+#include "utils.h"
+#include "accumulation.h"
 
 #define MAX_PRECISION 14.0 // massima precisione per i valori generati
 #define MAX_MU 8           // massimo numero di vicini per una tile
 
 // global variables
 
-std::vector<file_entry> file_entries;
+FILE *fp;
 
-// parametri algoritmo
+// parametri algoritmo trovati nel paper
 uint8_t mu = 4;        // Minimum cluster size in terms of the number of signifcant tiles
 float precision = 3.5; // Precision for projection operation anche float
-uint8_t tau = 5;      // Threshold number of points to determine if a tile is signifcant
+uint8_t tau = 5;       // Threshold number of points to determine if a tile is signifcant
 uint8_t delta = 1;     // Distance metric for cluster defnition
 uint8_t window_size = 10;
 
@@ -48,24 +54,26 @@ double min_dist = 0.0500; // 50 * 1.1m
 // a mean error of raw GPS measurements of vehicular movements of 53.7 m
 
 // parametri implementazione
+std::string file_path;
 bool timer_flag = false; // stampa tempo di esecuzione
-
 std::chrono::high_resolution_clock::time_point start_time;
 
 void usage()
 {
     fprintf(stderr, "Usage: ./sraster [-m <mu>] [-p <xi>] [-t <tau>] [-d <delta>] [-w <window size>]\n");
-    fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 5, max = %u)\n", UINT8_MAX);
-    fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 5, max = %f)\n", MAX_PRECISION);
-    fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 8, max = %u)\n", UINT8_MAX);
+    fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 4, max = %u)\n", UINT8_MAX);
+    fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 3.5, max = %f)\n", MAX_PRECISION);
+    fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 5, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT8_MAX);
-    fprintf(stderr, "  -w <window size> Set window size (default: 5)\n");
+    fprintf(stderr, "  -w <window size> Set window size (default: 10)\n");
+    fprintf(stderr, "  -f filepath\n"); //TODO: trovare un nome migliore
     fprintf(stderr, "  -s <seed> Set seed for random generator (default: 0)\n");
 }
 
 int main(int argc, char **argv)
 {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // argument parser
     // https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
     int c;
@@ -170,6 +178,11 @@ int main(int argc, char **argv)
             }
             break;
         }
+        case 'f':
+        {
+            file_path = optarg;
+            break;
+        }
 
         case '?':
         {
@@ -192,101 +205,67 @@ int main(int argc, char **argv)
     printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u, seed = %lu\n",
            mu, precision, tau, delta, window_size, seed);
 
-    printf("points_per_cluster = %u, number_of_clusters = %u, periods = %u, max_lng = %f, min_lng = %f, max_lat = %f, min_lat = %f, min_dist = %f\n",
-           points_per_cluster, number_of_clusters, periods, max_lng, min_lng, max_lat, min_lat, min_dist);
+    // printf("points_per_cluster = %u, number_of_clusters = %u, periods = %u, max_lng = %f, min_lng = %f, max_lat = %f, min_lat = %f, min_dist = %f\n",
+    //        points_per_cluster, number_of_clusters, periods, max_lng, min_lng, max_lat, min_lat, min_dist);
 
     for (int index = optind; index < argc; index++)
     {
         fprintf(stderr, "Non-option argument %s\n", argv[index]);
     }
 
-    file_entries = generate_data(points_per_cluster,
-                                 number_of_clusters,
-                                 periods,
-                                 seed,
-                                 max_lng,
-                                 min_lng,
-                                 max_lat,
-                                 min_lat,
-                                 min_dist);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    printf("Generated %lu entries\n", file_entries.size());
+
+    // carico i dati
+    std::vector<file_entry> file_entries = read_data(file_path);
+    file_entries.push_back({0.0, 0.0, 10}); // stop point
 
     int current_time = -1; //
 
     key_set significant_tiles;
     key_map total;
     sliding_window window;
-    std::vector<cluster_point> clusters;
+    std::vector<cluster_point> results;
 
     if (timer_flag)
     {
         start_time = std::chrono::high_resolution_clock::now();
     }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // leggo il dataset
     for (const auto &entry : file_entries)
     {
         auto row_time = entry.time;
-        auto row_x = entry.x;
-        auto row_y = entry.y;
+        point k = {surject(entry.x, precision), surject(entry.y, precision)};
 
-        point k = {surject(row_x, precision), surject(row_y, precision)};
         if ((int)row_time > current_time)
         {
-            next_period(clusters, current_time, significant_tiles, mu, precision, delta);
-            current_time = row_time;
-
-            #ifdef DEBUG
-                printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-                printf("DEBUG: Processing time %d\n", current_time);
-                printf("DEBUG: sigma size %ld\n", significant_tiles.size());
-            #endif
             
+            calculate_results(results, significant_tiles, mu, delta, precision, current_time); // send 0
+
+            current_time = row_time;
             int time_key = current_time - window_size;
 
             // 1 is present, 0 is not present
             if (window.count(time_key) == 1)
             {
-
-                #ifdef DEBUG
-                    printf("DEBUG: Removing time %d\n", time_key);
-                    printf("DEBUG: non dovrei essere qui: window.count(time_key) > 0\n");
-                #endif
-
-                key_map vals = window[time_key];
-                key_map::iterator it;
-
-                for (it = vals.begin(); it != vals.end(); it++)
-                {
-                    point c = it->first; // prendo la chiave di vals
-                    int old_count = total[c];
-                    total[c] -= it->second; // prendo il valore di vals
-                    int new_count = total[c];
-                    // TODO : da controllare
-                    if (new_count <= 0)
-                    {
-                        // total[c] = 0;
-                        total.erase(c);
-                    }
-                    if (old_count >= tau && new_count < tau)
-                    {
-                        significant_tiles.erase(c);
-                    }
-                }
-                window.erase(time_key);
+                slide_window(window, total, significant_tiles, time_key, tau); //eventually send -1
             }
         }
 
+        // update count
         total[k] = total[k] + 1;
         window[current_time][k] = window[current_time][k] + 1;
 
         if (total[k] == tau)
         {
-            significant_tiles.insert(k);
+            significant_tiles.insert(k); //send 1
         }
-
     }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     if (timer_flag)
     {
@@ -297,33 +276,25 @@ int main(int argc, char **argv)
         printf("Operations per second: %f\n", (double)file_entries.size() / duration.count() * 1000);
     }
 
-    FILE *fp = fopen("cluster.csv", "w");
-    if (fp == NULL)
-    {
-        perror("Error opening file");
-        return 1;
-    }
-    for (cluster_point &cluster : clusters)
-    {
-        fprintf(fp, "%f,%f,%d,%d\n", cluster.x, cluster.y, cluster.time, cluster.cluster_id);
-    }
-    fclose(fp);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    fp = fopen("generated_data.csv", "w");
-    if (fp == NULL)
-    {
-        perror("Error opening file");
+    std::string folderName = "data_output";
+    // Create the folder if it doesn't exist
+    if (!std::filesystem::exists(folderName)) {
+        std::filesystem::create_directory(folderName);
+    }
+
+    // Open the file
+    std::string filename = folderName + "/cluster_" + getCurrentTimestamp() + ".csv";
+    std::ofstream outputFile(filename);
+    if (!outputFile.is_open()) {
+        std::cerr << "Error opening file" << std::endl;
         return 1;
     }
-    uint32_t cluster_id = 0;
-    uint32_t row_count = 0;
-    for (file_entry &entry : file_entries)
-    {
-        if (row_count++ % points_per_cluster == 0)
-        {
-            cluster_id++;
-        }
-        fprintf(fp, "%f,%f,%d,%u\n", entry.x, entry.y, entry.time, cluster_id);
+
+    // Write data to the file
+    for (const cluster_point &cluster : results) {
+        outputFile << cluster.x << "," << cluster.y << "," << cluster.time << "," << cluster.cluster_id << "\n";
     }
 
     return 0;

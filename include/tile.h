@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <unordered_set>
 #include <unordered_map>
+#include <iostream>
+#include <vector>
 
 typedef struct point {
     int x;
@@ -35,5 +37,8 @@ typedef std::unordered_map<uint32_t, key_map> sliding_window;
 
 int surject(double x, float precision);
 double inverse_surject(int x, float precision);
+void printKeySet(const key_set& set);
+void printPointVector(const std::vector<point>& vec);
+void printPoint(const point& p);
 
 #endif  
