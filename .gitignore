@@ -31,8 +31,17 @@
 *.out
 *.app
 
+# Build files
+build/
+
+# Debug files
+test/
+
+# IDEs
 .vscode
 .idea
+
+# text files
 *.txt
 *.csv
-test/
+
