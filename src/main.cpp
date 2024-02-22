@@ -29,6 +29,8 @@
 #define MAX_PRECISION 14.0 // massima precisione per i valori generati
 #define MAX_MU 8           // massimo numero di vicini per una tile
 
+#define MAX_FILE_PATH_LENGTH 256 // Adjust the maximum length as needed
+
 // global variables
 
 FILE *fp;
@@ -54,30 +56,37 @@ double min_dist = 0.0500; // 50 * 1.1m
 // a mean error of raw GPS measurements of vehicular movements of 53.7 m
 
 // parametri implementazione
-std::string file_path;
-bool timer_flag = false; // stampa tempo di esecuzione
+std::string file_path_input;
+std::string file_path_output;
+std::string file_path_time;
+std::string folderName;
+bool timer_flag = false;  // stampa tempo di esecuzione
+bool output_flag = false; // stampa su file
+bool verbose_flag = false;
 std::chrono::high_resolution_clock::time_point start_time;
 
 void usage()
 {
-    fprintf(stderr, "Usage: ./sraster [-m <mu>] [-p <xi>] [-t <tau>] [-d <delta>] [-w <window size>]\n");
+    fprintf(stderr, "Usage: ./sraster -f input-filepath [-c <time-filepath>] [-o <output-filepath>] [-m <mu>] [-p <xi>] [-t <tau>] [-d <delta>] [-w <window size>]\n");
+    fprintf(stderr, "  -f filepath Set the input file path (mandatory)\n");
+    fprintf(stderr, "  -o filepath Set the output file path\n");
     fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 4, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 3.5, max = %f)\n", MAX_PRECISION);
     fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 5, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -w <window size> Set window size (default: 10)\n");
-    fprintf(stderr, "  -f filepath\n"); //TODO: trovare un nome migliore
     fprintf(stderr, "  -s <seed> Set seed for random generator (default: 0)\n");
+    fprintf(stderr, "  -c <time-filepath> Print execution time and set file path where time info will be saved\n");
 }
 
 int main(int argc, char **argv)
 {
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // argument parser
     // https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html
     int c;
-    while ((c = getopt(argc, argv, "m:p:t:d:w:s:hc")) != -1)
+    while ((c = getopt(argc, argv, "c:f:o:m:p:t:d:w:s:hv")) != -1)
     {
         switch (c)
         {
@@ -161,6 +170,17 @@ int main(int argc, char **argv)
         }
         case 'c':
         {
+            if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
+            {
+                fprintf(stderr, "Error: File path exceeds maximum length\n");
+                exit(EXIT_FAILURE);
+            }
+            if (std::filesystem::is_directory(optarg))
+            {
+                fprintf(stderr, "Error: Output file path is a directory\n");
+                exit(EXIT_FAILURE);
+            }
+            file_path_time = optarg;
             timer_flag = true;
             break;
         }
@@ -179,10 +199,34 @@ int main(int argc, char **argv)
             break;
         }
         case 'f':
-        {
-            file_path = optarg;
+            if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
+            {
+                fprintf(stderr, "Error: File path exceeds maximum length\n");
+                exit(EXIT_FAILURE);
+            }
+            file_path_input = optarg;
             break;
-        }
+
+        case 'o':
+
+            if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
+            {
+                fprintf(stderr, "Error: File path exceeds maximum length\n");
+                exit(EXIT_FAILURE);
+            }
+            if (std::filesystem::is_directory(optarg))
+            {
+                fprintf(stderr, "Error: Output file path is a directory\n");
+                exit(EXIT_FAILURE);
+            }
+
+            file_path_output = optarg;
+            output_flag = true;
+            break;
+        
+        case 'v':
+            verbose_flag = true;
+            break;
 
         case '?':
         {
@@ -202,8 +246,47 @@ int main(int argc, char **argv)
         }
     }
 
+    if (file_path_input.empty())
+    {
+        fprintf(stderr, "Missing file input path\n");
+        usage();
+        exit(EXIT_FAILURE);
+    }
+
+    if (file_path_output.empty() && output_flag == true)
+    {
+        folderName = "data_output";
+        // Create the folder if it doesn't exist
+        if (!std::filesystem::exists(folderName))
+        {
+            std::filesystem::create_directory(folderName);
+        }
+
+        // Open the file
+        file_path_output = folderName + "/cluster_" + getCurrentTimestamp() + ".csv";
+    }
+
+    if (file_path_time.empty() && timer_flag == true)
+    {
+        folderName = "time_output";
+        // Create the folder if it doesn't exist
+        if (!std::filesystem::exists(folderName))
+        {
+            std::filesystem::create_directory(folderName);
+        }
+
+        // Open the file
+        file_path_time = folderName + "/time_" + getCurrentTimestamp() + ".csv";
+    }
+
     printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u, seed = %lu\n",
            mu, precision, tau, delta, window_size, seed);
+
+    printf("file_path_input = %s\n", file_path_input.c_str());
+
+    for (int index = optind; index < argc; ++index) {
+        std::cout << argv[index] << std::endl;
+    }
 
     // printf("points_per_cluster = %u, number_of_clusters = %u, periods = %u, max_lng = %f, min_lng = %f, max_lat = %f, min_lat = %f, min_dist = %f\n",
     //        points_per_cluster, number_of_clusters, periods, max_lng, min_lng, max_lat, min_lat, min_dist);
@@ -213,11 +296,10 @@ int main(int argc, char **argv)
         fprintf(stderr, "Non-option argument %s\n", argv[index]);
     }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // carico i dati
-    std::vector<file_entry> file_entries = read_data(file_path);
+    std::vector<file_entry> file_entries = read_data(file_path_input);
     file_entries.push_back({0.0, 0.0, 10}); // stop point
 
     int current_time = -1; //
@@ -232,7 +314,7 @@ int main(int argc, char **argv)
         start_time = std::chrono::high_resolution_clock::now();
     }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // leggo il dataset
     for (const auto &entry : file_entries)
@@ -242,7 +324,7 @@ int main(int argc, char **argv)
 
         if ((int)row_time > current_time)
         {
-            
+
             calculate_results(results, significant_tiles, mu, delta, precision, current_time); // send 0
 
             current_time = row_time;
@@ -251,7 +333,7 @@ int main(int argc, char **argv)
             // 1 is present, 0 is not present
             if (window.count(time_key) == 1)
             {
-                slide_window(window, total, significant_tiles, time_key, tau); //eventually send -1
+                slide_window(window, total, significant_tiles, time_key, tau); // eventually send -1
             }
         }
 
@@ -261,11 +343,11 @@ int main(int argc, char **argv)
 
         if (total[k] == tau)
         {
-            significant_tiles.insert(k); //send 1
+            significant_tiles.insert(k); // send 1
         }
     }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     if (timer_flag)
     {
@@ -274,27 +356,49 @@ int main(int argc, char **argv)
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
         printf("Elapsed time: %ld milliseconds\n", duration.count());
         printf("Operations per second: %f\n", (double)file_entries.size() / duration.count() * 1000);
+
+        // Open or create the time file
+        if (!std::filesystem::exists(file_path_time))
+        {
+            std::ofstream timeFile(file_path_time); // Open file in append mode
+            // If the file doesn't exist, create it and write headers
+            if (timeFile.is_open())
+            {
+                timeFile << "Elapsed Time (ms),Operations per second\n";
+            }
+            else
+            {
+                std::cerr << "Error creating time file" << std::endl;
+                return 1; // Exit function or handle error as appropriate
+            }
+        }
+        
+        std::ofstream timeFile(file_path_time, std::ios::app); // Open file in append mode
+        timeFile << duration.count() << "," << (long double)file_entries.size() / duration.count() * 1000 << "\n";
+        timeFile.close();
     }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::string folderName = "data_output";
-    // Create the folder if it doesn't exist
-    if (!std::filesystem::exists(folderName)) {
-        std::filesystem::create_directory(folderName);
-    }
+    if (output_flag)
+    {
+        std::ofstream outputFile(file_path_output);
+        if (!outputFile.is_open())
+        {
+            std::cerr << "Error opening file" << std::endl;
+            return 1;
+        }
 
-    // Open the file
-    std::string filename = folderName + "/cluster_" + getCurrentTimestamp() + ".csv";
-    std::ofstream outputFile(filename);
-    if (!outputFile.is_open()) {
-        std::cerr << "Error opening file" << std::endl;
-        return 1;
-    }
-
-    // Write data to the file
-    for (const cluster_point &cluster : results) {
-        outputFile << cluster.x << "," << cluster.y << "," << cluster.time << "," << cluster.cluster_id << "\n";
+        // Write data to the file
+        for (const cluster_point &cluster : results)
+        {
+            outputFile << cluster.x << "," << cluster.y << "," << cluster.time << "," << cluster.cluster_id << "\n";
+        }
+    } else {
+        for (const cluster_point &cluster : results)
+        {
+            printf("%f,%f,%d,%d\n", cluster.x, cluster.y, cluster.time, cluster.cluster_id);
+        }
     }
 
     return 0;
