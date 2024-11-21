@@ -32,7 +32,7 @@
 *.app
 
 # Build files
-build/
+build
 
 # Debug files
 test/
@@ -40,6 +40,7 @@ test/
 # IDEs
 .vscode
 .idea
+.code-workspace
 
 # text files
 *.txt
