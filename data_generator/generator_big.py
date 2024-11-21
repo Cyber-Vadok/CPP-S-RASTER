@@ -7,7 +7,8 @@ def generate_data(NUM_CLUSTERS, output_folder=None):
     random.seed(0)  # for reproducibility
 
     # Clusters have 500 points that are randomly spread around a center
-    points_cluster = 500
+    # 500k punti 100 clusters / 5M punti 1000 clusters sono 5000 punti per cluster
+    points_cluster = 5000
 
     centers = []
     all_points = []
@@ -29,7 +30,8 @@ def generate_data(NUM_CLUSTERS, output_folder=None):
 
         if valid:
             centers.append((x, y))
-            if len(centers) % 1000 == 0:
+            # ogni mille centri stampo il progresso
+            if len(centers) % 1000 == 0: 
                 print("Centers created:", len(centers))
 
     print("Cluster centers determined.")
@@ -50,6 +52,7 @@ def generate_data(NUM_CLUSTERS, output_folder=None):
 
             all_points.append((p1, p2))
             count += 1
+            # ogni 10k punti stampo il progresso
             if count % 10000 == 0:
                 print("Points created:", count)
 
@@ -72,6 +75,8 @@ if __name__ == "__main__":
         print("Usage: python script.py [output_folder]")
         sys.exit(1)
 
+    # nell'esperimento ne usa 1000
     # 1 to 10,000 centers
-    for i in range(0, 5):
-        generate_data(10 ** i, output_folder)
+    # for i in range(0, 3):
+    #     generate_data(10 ** i, output_folder)
+    generate_data(10**3, output_folder)
