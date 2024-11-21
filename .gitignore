@@ -40,7 +40,7 @@ test/
 # IDEs
 .vscode
 .idea
-.code-workspace
+*.code-workspace
 
 # text files
 *.txt
