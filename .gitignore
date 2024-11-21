@@ -51,3 +51,4 @@ test/
 
 /build
 /build/bin
+build/bin/sraster
