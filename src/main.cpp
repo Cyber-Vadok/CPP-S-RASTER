@@ -42,19 +42,6 @@ uint8_t tau = 5;       // Threshold number of points to determine if a tile is s
 uint8_t delta = 1;     // Distance metric for cluster defnition
 uint8_t window_size = 10;
 
-// parametri generazione dataset
-uint32_t points_per_cluster = 500;
-uint32_t number_of_clusters = 1000; // per period
-uint32_t periods = 10;
-uint64_t seed = 0;
-double max_lng = 180.0;
-double min_lng = -180.0;
-double max_lat = 90.0;
-double min_lat = -90.0;
-double min_dist = 0.0500; // 50 * 1.1m
-// A study based on London, for instance, found
-// a mean error of raw GPS measurements of vehicular movements of 53.7 m
-
 // parametri implementazione
 std::string file_path_input;
 std::string file_path_output;
@@ -75,7 +62,6 @@ void usage()
     fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 5, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT8_MAX);
     fprintf(stderr, "  -w <window size> Set window size (default: 10)\n");
-    fprintf(stderr, "  -s <seed> Set seed for random generator (default: 0)\n");
     fprintf(stderr, "  -c <time-filepath> Print execution time and set file path where time info will be saved\n");
 }
 
@@ -184,20 +170,6 @@ int main(int argc, char **argv)
             timer_flag = true;
             break;
         }
-        case 's':
-        {
-            if (std::stoul(optarg) > UINT64_MAX)
-            {
-                fprintf(stderr, "Invalid seed value, max = %lu\n", UINT64_MAX);
-                usage();
-                exit(EXIT_FAILURE);
-            }
-            else
-            {
-                seed = std::stoul(optarg);
-            }
-            break;
-        }
         case 'f':
             if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
             {
@@ -279,8 +251,8 @@ int main(int argc, char **argv)
         file_path_time = folderName + "/time_" + getCurrentTimestamp() + ".csv";
     }
 
-    printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u, seed = %lu\n",
-           mu, precision, tau, delta, window_size, seed);
+    printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u",
+           mu, precision, tau, delta, window_size);
 
     printf("file_path_input = %s\n", file_path_input.c_str());
 
