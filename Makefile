@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Wextra -Iinclude -g
+CFLAGS = -Wall -Wextra -Iinclude -g -std=c++17
 LDFLAGS = -lm
 
 BUILD_DIR = build
