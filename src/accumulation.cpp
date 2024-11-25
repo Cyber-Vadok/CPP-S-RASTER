@@ -5,6 +5,7 @@ void slide_window(sliding_window &window, key_map &total, key_set &significant_t
     key_map vals = window[time_key];
     key_map::iterator it;
 
+    // levo da totals i dati della finestra in scadenza 
     for (it = vals.begin(); it != vals.end(); it++)
     {
         point c = it->first; // prendo la chiave di vals
