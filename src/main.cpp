@@ -25,7 +25,6 @@
 #include "generator.h"
 #include "utils.h"
 #include "accumulation.h"
-#include <bits/fs_ops.h>
 
 #define MAX_PRECISION 14.0 // massima precisione per i valori generati
 #define MAX_MU 8           // massimo numero di vicini per una tile

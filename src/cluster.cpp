@@ -2,7 +2,7 @@
 
 void calculate_results(std::vector<cluster_point>& results, key_set& significant_tiles, int delta, int mu, float precision, int current_time)
 {
-            std::vector<std::unordered_set<point>> clusters;
+            std::vector<std::unordered_set<point> > clusters;
 
             // https://thispointer.com/modify-elements-while-iterating-over-a-set-in-c/
             while (!significant_tiles.empty()) // sigma not empty
