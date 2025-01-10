@@ -18,16 +18,15 @@
 #include <sstream>
 #include <iomanip>
 #include <filesystem> // for filesystem operations
+#include <climits>
 
 // my include
 #include "tile.h"
 #include "cluster.h"
-#include "generator.h"
 #include "utils.h"
 #include "accumulation.h"
 
 #define MAX_PRECISION 14.0 // massima precisione per i valori generati
-#define MAX_MU 8           // massimo numero di vicini per una tile
 
 #define MAX_FILE_PATH_LENGTH 256 // Adjust the maximum length as needed
 
@@ -35,12 +34,14 @@
 
 FILE *fp;
 
+// TODO: il numero massimo di significant tile vicine dipende da delta
+
 // parametri algoritmo trovati nel paper
-uint8_t mu = 4;        // Minimum cluster size in terms of the number of signifcant tiles
+unsigned int mu = 4;        // Minimum cluster size in terms of the number of signifcant tiles
 float precision = 3.5; // Precision for projection operation anche float
-uint8_t tau = 5;       // Threshold number of points to determine if a tile is signifcant
-uint8_t delta = 1;     // Distance metric for cluster defnition
-uint8_t window_size = 10;
+unsigned int tau = 5;       // Threshold number of points to determine if a tile is signifcant
+unsigned int delta = 1;     // Distance metric for cluster defnition
+unsigned int window_size = 10;
 
 // parametri implementazione
 std::string file_path_input;
@@ -57,10 +58,10 @@ void usage()
     fprintf(stderr, "Usage: ./sraster -f input-filepath [-c <time-filepath>] [-o <output-filepath>] [-m <mu>] [-p <xi>] [-t <tau>] [-d <delta>] [-w <window size>]\n");
     fprintf(stderr, "  -f filepath Set the input file path (mandatory)\n");
     fprintf(stderr, "  -o filepath Set the output file path\n");
-    fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 4, max = %u)\n", UINT8_MAX);
+    fprintf(stderr, "  -m <mu>  Set minimum cluster size in terms of the number of signifcant tiles (default: 4, max = %u)\n", UINT_MAX);
     fprintf(stderr, "  -p <xi>  Set precision for projection operation (default: 3.5, max = %f)\n", MAX_PRECISION);
-    fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 5, max = %u)\n", UINT8_MAX);
-    fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT8_MAX);
+    fprintf(stderr, "  -t <tau> Set threshold number of points to determine if a tile is significant (default: 5, max = %u)\n", UINT_MAX);
+    fprintf(stderr, "  -d <delta> Set distance metric for cluster definition (default: 1, max = %u)\n", UINT_MAX);
     fprintf(stderr, "  -w <window size> Set window size (default: 10)\n");
     fprintf(stderr, "  -c <time-filepath> Print execution time and set file path where time info will be saved\n");
 }
@@ -76,7 +77,7 @@ int main(int argc, char **argv)
     {
         switch (c)
         {
-        case 'h':
+        case 'h': // help
         {
             usage();
             exit(1);
@@ -84,9 +85,9 @@ int main(int argc, char **argv)
         }
         case 'm': // minimum cluster size
         {
-            if (std::stoul(optarg) > MAX_MU)
+            if (std::stoul(optarg) > UINT_MAX)
             {
-                fprintf(stderr, "Invalid mu value, max = %u\n", MAX_MU);
+                fprintf(stderr, "Invalid mu value, max = %u\n", UINT_MAX);
                 usage();
                 exit(EXIT_FAILURE);
             }
@@ -114,9 +115,9 @@ int main(int argc, char **argv)
         }
         case 't': // threshold
         {
-            if (std::stoul(optarg) > UINT8_MAX)
+            if (std::stoul(optarg) > UINT_MAX)
             {
-                fprintf(stderr, "Invalid tau value, max = %u\n", UINT8_MAX);
+                fprintf(stderr, "Invalid tau value, max = %u\n", UINT_MAX);
                 usage();
                 exit(EXIT_FAILURE);
             }
@@ -128,9 +129,9 @@ int main(int argc, char **argv)
         }
         case 'd': // distance metric
         {
-            if (std::stoul(optarg) > UINT8_MAX)
+            if (std::stoul(optarg) > UINT_MAX)
             {
-                fprintf(stderr, "Invalid delta value, max = %u\n", UINT8_MAX);
+                fprintf(stderr, "Invalid delta value, max = %u\n", UINT_MAX);
                 usage();
                 exit(EXIT_FAILURE);
             }
@@ -142,9 +143,9 @@ int main(int argc, char **argv)
         }
         case 'w': // window size
         {
-            if (std::stoul(optarg) > UINT8_MAX)
+            if (std::stoul(optarg) > UINT_MAX)
             {
-                fprintf(stderr, "Invalid window size value, max = %u\n", UINT8_MAX);
+                fprintf(stderr, "Invalid window size value, max = %u\n", UINT_MAX);
                 usage();
                 exit(EXIT_FAILURE);
             }
@@ -154,7 +155,7 @@ int main(int argc, char **argv)
             }
             break;
         }
-        case 'c':
+        case 'c': // ouatput tempo
         {
             if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
             {
@@ -170,7 +171,7 @@ int main(int argc, char **argv)
             timer_flag = true;
             break;
         }
-        case 'f':
+        case 'f': // input
             if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
             {
                 fprintf(stderr, "Error: File path exceeds maximum length\n");
@@ -179,7 +180,7 @@ int main(int argc, char **argv)
             file_path_input = optarg;
             break;
 
-        case 'o':
+        case 'o': // output cluster
 
             if (strlen(optarg) >= MAX_FILE_PATH_LENGTH)
             {
@@ -191,11 +192,10 @@ int main(int argc, char **argv)
                 fprintf(stderr, "Error: Output file path is a directory\n");
                 exit(EXIT_FAILURE);
             }
-
-            file_path_output = optarg;
+                file_path_output = optarg;
             output_flag = true;
             break;
-        
+
         case 'v':
             verbose_flag = true;
             break;
@@ -225,38 +225,13 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (file_path_output.empty() && output_flag == true)
-    {
-        folderName = "data_output";
-        // Create the folder if it doesn't exist
-        if (!std::filesystem::exists(folderName))
-        {
-            std::filesystem::create_directory(folderName);
-        }
-
-        // Open the file
-        file_path_output = folderName + "/cluster_" + getCurrentTimestamp() + ".csv";
-    }
-
-    if (file_path_time.empty() && timer_flag == true)
-    {
-        folderName = "time_output";
-        // Create the folder if it doesn't exist
-        if (!std::filesystem::exists(folderName))
-        {
-            std::filesystem::create_directory(folderName);
-        }
-
-        // Open the file
-        file_path_time = folderName + "/time_" + getCurrentTimestamp() + ".csv";
-    }
-
-    printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u",
+    printf("mu = %u, precision = %f, tau = %u, delta = %u, window_size = %u,",
            mu, precision, tau, delta, window_size);
 
-    printf("file_path_input = %s\n", file_path_input.c_str());
+    printf(" file_path_input = %s\n", file_path_input.c_str());
 
-    for (int index = optind; index < argc; ++index) {
+    for (int index = optind; index < argc; ++index)
+    {
         std::cout << argv[index] << std::endl;
     }
 
@@ -272,9 +247,9 @@ int main(int argc, char **argv)
 
     // carico i dati
     std::vector<file_entry> file_entries = read_data(file_path_input);
-    file_entries.push_back({0.0, 0.0, 10}); // stop point
+    file_entries.push_back({0.0, 0.0, 10}); // TO DO : stop point a che serviva?
 
-    int current_time = -1; //
+    int current_time = -1;
 
     key_set significant_tiles;
     key_map total;
@@ -297,7 +272,7 @@ int main(int argc, char **argv)
         if ((int)row_time > current_time)
         {
 
-            calculate_results(results, significant_tiles, mu, delta, precision, current_time); // send 0
+            calculate_results(results, significant_tiles, delta, mu, precision, current_time); // send 0
 
             current_time = row_time;
             int time_key = current_time - window_size;
@@ -344,7 +319,7 @@ int main(int argc, char **argv)
                 return 1; // Exit function or handle error as appropriate
             }
         }
-        
+
         std::ofstream timeFile(file_path_time, std::ios::app); // Open file in append mode
         timeFile << duration.count() << "," << (long double)file_entries.size() / duration.count() * 1000 << "\n";
         timeFile.close();
@@ -361,15 +336,29 @@ int main(int argc, char **argv)
             return 1;
         }
 
+        outputFile << "x,y,time,cluster_id\n";
         // Write data to the file
         for (const cluster_point &cluster : results)
         {
             outputFile << cluster.x << "," << cluster.y << "," << cluster.time << "," << cluster.cluster_id << "\n";
         }
-    } else {
+    }
+    else
+    {
+        // Array per memorizzare i massimi cluster_id per ciascun time
+        std::vector<unsigned int> max_clusters_per_time(window_size, 0);
+
+        // Calcolo del massimo cluster_id per ciascun time
         for (const cluster_point &cluster : results)
         {
-            printf("%f,%f,%d,%d\n", cluster.x, cluster.y, cluster.time, cluster.cluster_id);
+            max_clusters_per_time[cluster.time] = std::max(max_clusters_per_time[cluster.time], cluster.cluster_id);
+        }
+
+        // Stampa del numero totale di cluster per ciascun time
+        printf("time,total_clusters\n");
+        for (unsigned int time = 0; time < window_size; ++time)
+        {
+            printf("%d,%d\n", time, max_clusters_per_time[time] + 1);
         }
     }
 

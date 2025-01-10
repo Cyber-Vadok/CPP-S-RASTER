@@ -5,6 +5,8 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
             std::vector<std::unordered_set<point> > clusters;
 
             // https://thispointer.com/modify-elements-while-iterating-over-a-set-in-c/
+            // ho perso così tanto tempo nella vita che sto link non esiste più, lascio questo commento per monito
+            // e per ricordo
             while (!significant_tiles.empty()) // sigma not empty
             {
                 std::unordered_set<point> visit;
@@ -45,6 +47,8 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
                 }
                 if ((int)cluster.size() >= mu)
                 {
+                    // printf("%d\n", (int)cluster.size());
+                    // printf("%d\n", mu);
                     try
                     {
                         clusters.push_back(cluster);
@@ -56,7 +60,7 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
                 }
             }
 
-            uint16_t id = 0;   
+            unsigned int id = 0;   
     
             for (std::unordered_set<point> kn : clusters)
             {
@@ -72,7 +76,8 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
 }
 
 // io ho inteso adiacenza e non adiacenza cardinale https://freeciv.fandom.com/wiki/Adjacency#:~:text=Adjacency%20is%20when%20a%20tile,referred%20to%20as%20CARDINALLY%20ADJACENT.
-std::vector<point> neighborhood(key_set sigma, const point *center, uint8_t delta)
+// si...è la wiki di un gioco...
+std::vector<point> neighborhood(key_set sigma, const point *center, unsigned int delta)
 {
     std::vector<point> kl;
     for (int i = center->x - delta; i <= center->x + delta; i++)

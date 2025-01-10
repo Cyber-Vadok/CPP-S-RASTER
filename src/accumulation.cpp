@@ -12,7 +12,7 @@ void slide_window(sliding_window &window, key_map &total, key_set &significant_t
         int old_count = total[c];
         total[c] -= it->second; // prendo il valore di vals
         int new_count = total[c];
-        // TODO : da controllare
+        // TODO : da controllare, per adesso funziona, non si tocca...
         if (new_count <= 0)
         {
             // total[c] = 0;
