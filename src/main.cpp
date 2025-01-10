@@ -42,6 +42,7 @@ float precision = 3.5; // Precision for projection operation anche float
 unsigned int tau = 5;       // Threshold number of points to determine if a tile is signifcant
 unsigned int delta = 1;     // Distance metric for cluster defnition
 unsigned int window_size = 10;
+unsigned int cluster_id = 0;
 
 // parametri implementazione
 std::string file_path_input;
@@ -247,6 +248,7 @@ int main(int argc, char **argv)
 
     // carico i dati
     std::vector<file_entry> file_entries = read_data(file_path_input);
+
     file_entries.push_back({0.0, 0.0, 10}); // TO DO : stop point a che serviva?
 
     int current_time = -1;
@@ -266,13 +268,14 @@ int main(int argc, char **argv)
     // leggo il dataset
     for (const auto &entry : file_entries)
     {
+
         auto row_time = entry.time;
         point k = {surject(entry.x, precision), surject(entry.y, precision)};
 
         if ((int)row_time > current_time)
         {
 
-            calculate_results(results, significant_tiles, delta, mu, precision, current_time); // send 0
+            calculate_results(results, significant_tiles, delta, mu, precision, current_time, cluster_id); // send 0
 
             current_time = row_time;
             int time_key = current_time - window_size;
@@ -345,21 +348,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        // Array per memorizzare i massimi cluster_id per ciascun time
-        std::vector<unsigned int> max_clusters_per_time(window_size, 0);
-
-        // Calcolo del massimo cluster_id per ciascun time
-        for (const cluster_point &cluster : results)
-        {
-            max_clusters_per_time[cluster.time] = std::max(max_clusters_per_time[cluster.time], cluster.cluster_id);
-        }
-
-        // Stampa del numero totale di cluster per ciascun time
-        printf("time,total_clusters\n");
-        for (unsigned int time = 0; time < window_size; ++time)
-        {
-            printf("%d,%d\n", time, max_clusters_per_time[time] + 1);
-        }
+        printf("clusters found: %d\n", cluster_id);
     }
 
     return 0;

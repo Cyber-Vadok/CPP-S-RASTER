@@ -34,7 +34,7 @@ def process_file(file_path):
         label=f'Standard Deviation: ±{std_elapsed_time:.2e}'
     )
     
-    plt.xlabel('Data Points')
+    plt.xlabel('Dataset id #')
     plt.ylabel('Elapsed Time (ms)')
     plt.title(f'Elapsed Time (ms) - {os.path.basename(file_path)}')
     plt.legend()
@@ -68,7 +68,7 @@ def process_file(file_path):
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
 
     # Labels and title
-    plt.xlabel('Data Points')
+    plt.xlabel('Dataset id #')
     plt.ylabel('Operations per second')
     plt.title(f'Operations per second - {os.path.basename(file_path)}')
     plt.legend()
