@@ -64,8 +64,9 @@ def evaluate_sraster(params, expected_clusters):
     last_row = df.iloc[-1]
     last_id = last_row['cluster_id']
 
-    # Calcola il numero di cluster
-    num_clusters = last_id + 1
+    # Calcola il numero totale di cluster considerando il reset di cluster_id per ogni time
+    unique_times = df["time"].unique()
+    num_clusters = sum(df[df["time"] == t]["cluster_id"].max() + 1 for t in unique_times)
     print(f"Number of clusters found: {num_clusters}")
 
     if num_clusters != expected_clusters:
@@ -111,7 +112,7 @@ args = parser.parse_args()
 expected_clusters = args.expected_clusters
 
 # Esegui l'ottimizzazione bayesiana
-res = gp_minimize(objective_function, space, n_calls=50, random_state=42)
+res = gp_minimize(objective_function, space, n_calls=50, random_state=7)
 
 # Ordina i risultati per score
 sorted_results = sorted(results, key=lambda x: x['score'], reverse=True)
