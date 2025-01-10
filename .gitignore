@@ -49,6 +49,10 @@ test/
 # documentation
 *.pdf
 
+# images
+*.png
+*.jpg
+
 /build
 /build/bin
 build/bin/sraster

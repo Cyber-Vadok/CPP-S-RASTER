@@ -1,6 +1,6 @@
 #include "cluster.h"
 
-void calculate_results(std::vector<cluster_point>& results, key_set& significant_tiles, int delta, int mu, float precision, int current_time, unsigned int& cluster_id) 
+void calculate_results(std::vector<cluster_point>& results, key_set& significant_tiles, int delta, int mu, float precision, int current_time) 
 {
             std::vector<std::unordered_set<point> > clusters;
 
@@ -60,6 +60,8 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
                 }
             }
     
+            unsigned int cluster_id = 0;
+
             for (std::unordered_set<point> kn : clusters)
             {
                 for (point k : kn)

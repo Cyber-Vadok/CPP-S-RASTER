@@ -42,7 +42,6 @@ float precision = 3.5; // Precision for projection operation anche float
 unsigned int tau = 5;       // Threshold number of points to determine if a tile is signifcant
 unsigned int delta = 1;     // Distance metric for cluster defnition
 unsigned int window_size = 10;
-unsigned int cluster_id = 0;
 
 // parametri implementazione
 std::string file_path_input;
@@ -275,7 +274,7 @@ int main(int argc, char **argv)
         if ((int)row_time > current_time)
         {
 
-            calculate_results(results, significant_tiles, delta, mu, precision, current_time, cluster_id); // send 0
+            calculate_results(results, significant_tiles, delta, mu, precision, current_time); // send 0
 
             current_time = row_time;
             int time_key = current_time - window_size;
@@ -346,10 +345,10 @@ int main(int argc, char **argv)
             outputFile << cluster.x << "," << cluster.y << "," << cluster.time << "," << cluster.cluster_id << "\n";
         }
     }
-    else
-    {
-        printf("clusters found: %d\n", cluster_id);
-    }
+    // else
+    // {
+    //     printf("clusters found: %d\n", cluster_id);
+    // }
 
     return 0;
 }
