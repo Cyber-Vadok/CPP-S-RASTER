@@ -47,8 +47,6 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
                 }
                 if ((int)cluster.size() >= mu)
                 {
-                    // printf("%d\n", (int)cluster.size());
-                    // printf("%d\n", mu);
                     try
                     {
                         clusters.push_back(cluster);
@@ -57,7 +55,7 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
                     {
                         std::cerr << e.what() << '\n';
                     }
-                }
+                }          
             }
     
             unsigned int cluster_id = 0;
@@ -81,8 +79,6 @@ void calculate_results(std::vector<cluster_point>& results, key_set& significant
 // si...è la wiki di un gioco...
 std::vector<point> neighborhood(key_set sigma, const point *center, unsigned int delta)
 {
-
-    // printf("center.x: %f, center.y: %f\n", center->x, center->y);
     
     std::vector<point> kl;
     for (int i = center->x - delta; i <= center->x + delta; i++)

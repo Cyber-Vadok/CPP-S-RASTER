@@ -9,10 +9,10 @@ mkdir -p "$time_folder"
 
 show_help() {
   echo "Uso: $0 [-n numero_cluster] [-p punti_per_cluster] [-w finestra] [-m trials] [--help]"
-  echo "  -n numero_cluster       Numero di cluster"
-  echo "  -p punti_per_cluster    Numero di punti per cluster"
-  echo "  -w finestra             Dimensione finestra temporale"
-  echo "  -m tentativi             trials"
+  echo "  -n                      Numero di cluster"
+  echo "  -p                      Numero di punti per cluster"
+  echo "  -w                      Dimensione finestra temporale"
+  echo "  -m                      Numero di dataset generati per la configurazione"
   echo "  --help                  Mostra questo messaggio di aiuto"
 }
 
@@ -81,4 +81,4 @@ do
     ./build/bin/sraster -f "$input_filename" -c "$output_filename"
 done
 
-python3 time_output/plotter.py $output_filename
+python3 scripts/time_plotter.py $output_filename

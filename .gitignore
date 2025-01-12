@@ -45,6 +45,8 @@ test/
 # text files
 *.txt
 *.csv
+# Non ignorare requirements.txt
+!requirements.txt
 
 # documentation
 *.pdf
@@ -52,6 +54,9 @@ test/
 # images
 *.png
 *.jpg
+
+#python
+venv/
 
 /build
 /build/bin

@@ -273,6 +273,8 @@ int main(int argc, char **argv)
 
         if ((int)row_time > current_time)
         {
+            //DEBUG : bloccato a processing time 1
+            // printf("Processing time %d\n", row_time);
 
             calculate_results(results, significant_tiles, delta, mu, precision, current_time); // send 0
 

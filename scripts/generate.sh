@@ -1,17 +1,19 @@
 #!/bin/bash
 
-seed=$(date +%s)
-
 # Function to show usage instructions
 show_help() {
-  echo "Usage: $0 [-w value] [-n value] [-p value] [-f filename]"
+  echo "Usage: $0 -w value -n value -p value -f filename"
+  echo "  -w value   Number of days (positive integer)"
+  echo "  -n value   Number of clusters (positive integer)"
+  echo "  -p value   Points per cluster (positive integer)"
+  echo "  -f filename Output filename (valid file name)"
 }
 
-# Default values
-w=10
-n=10
-p=50
-filename="output_$seed.csv"
+# Initialize variables
+w=""
+n=""
+p=""
+filename=""
 
 # Parse command line arguments
 while getopts "w:n:p:f:h" opt; do
@@ -39,9 +41,16 @@ while getopts "w:n:p:f:h" opt; do
   esac
 done
 
-# Validate inputs, checks if a integer positive number
+# Check if all required parameters are provided
+if [[ -z $w || -z $n || -z $p || -z $filename ]]; then
+  echo "Error: Missing required parameters."
+  show_help
+  exit 1
+fi
+
+# Validate inputs (checks for positive integers and valid filename)
 if [[ ! $w =~ ^[0-9]+$ ]] || [[ ! $n =~ ^[0-9]+$ ]] || [[ ! $p =~ ^[0-9]+$ ]] || [[ ! $filename =~ ^[a-zA-Z0-9._-]+$ ]]; then
-  echo "Invalid input. Please check the arguments."
+  echo "Error: Invalid input. Please check the arguments."
   show_help
   exit 1
 fi
